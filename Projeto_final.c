@@ -37,9 +37,12 @@ uint slice = 0;
 
 int64_t alarm_callback(alarm_id_t id, void *user_data);
 void gpio_irq_handler_callback(uint gpio, uint32_t events);
+//simula a conexão com a rede
 bool network_start();
 void start_up();
+// apresenta dados através do minitor e buzzer
 void send_alert(char *message, bool make_sound);
+// simula a leitura de dados do sensor
 uint16_t read_sensor();
 void send_data(struct Data *data);
 
