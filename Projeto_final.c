@@ -24,7 +24,7 @@ struct Data
 {
     bool status;
     bool status_travessia;
-    int16_t tempo;
+    int32_t tempo;
     char *porto_destino;
 };
 
@@ -55,11 +55,14 @@ int main()
     ssd1306_config(&ssd);                                     // Configura o display
     ssd1306_send_data(&ssd);                                  // Envia os dados para o display
 
+    ssd1306_rect(&ssd, 3, 3, 122, 60, 1, !1); // Desenha um retângulo
+    ssd1306_send_data(&ssd);
     // Struct que irá armazenar os dados que serão enviados
     struct Data data_to_send;
 
     while (true)
     {
+
         if (try_connect && CURRENT_ALARM == 0)
         {
             // Tenta estabelecer conexão
@@ -68,46 +71,49 @@ int main()
             if (!is_connection_successful)
             {
                 send_alert("Sem sinal", true);
+                ssd1306_draw_string(&ssd, "status OFF", 28, 20);
+                ssd1306_send_data(&ssd);
             }
             else
             {
                 send_alert("Com sinal", false);
+                ssd1306_draw_string(&ssd, "status ON ", 28, 20);
+                ssd1306_send_data(&ssd);
             }
         }
-        uint16_t sensor_value = read_sensor();
-       
-            // ssd1306_draw_string(&ssd,"Em funcionamento",0,10);
-            // ssd1306_send_data(&ssd);
-            if (abs(sensor_value - 2048) != 0)
-            {
-                // Armazena o status de funcionamento da embarcação
-                data_to_send.status = status;
-                // Indica que a embarcação está ou não em rota par o destino
-                data_to_send.status_travessia = false;
-                // Armazena o tempo de travessia em segundos
-                uint64_t current_sensor_verification = to_ms_since_boot(get_absolute_time());
 
-                char *destino = sensor_value > 2048 ? DESTINO_AURELINO_LEAL : DESTINO_UBAITABA;
-                // Envia os dados somente quando houver mudança nos sensores
-                if (destino[0] != data_to_send.porto_destino[0])
-                {
-                    data_to_send.porto_destino = destino;
-                    data_to_send.tempo = last_sensor_verification == 0 ? -1 : (current_sensor_verification - last_sensor_verification) / 1000;
-                    last_sensor_verification = current_sensor_verification;
-                    send_data(&data_to_send);
-                }
-            }
-            else
+        uint16_t sensor_value = read_sensor();
+        // ssd1306_draw_string(&ssd,"Em funcionamento",0,10);
+        // ssd1306_send_data(&ssd);
+        if (abs(sensor_value - 2048) != 0)
+        {
+            // Armazena o status de funcionamento da embarcação
+            data_to_send.status = status;
+            // Indica que a embarcação está ou não em rota par o destino
+            data_to_send.status_travessia = false;
+            // Armazena o tempo de travessia em segundos
+            uint64_t current_sensor_verification = to_ms_since_boot(get_absolute_time());
+
+            char *destino = sensor_value > 2048 ? DESTINO_AURELINO_LEAL : DESTINO_UBAITABA;
+            // Envia os dados somente quando houver mudança nos sensores
+            if (destino[0] != data_to_send.porto_destino[0])
             {
-                // Armazena o status de funcionamento da embarcação
-                data_to_send.status = status;
-                // Indica que a embarcação está ou não em rota par o destino
-                data_to_send.status_travessia = true;
-                data_to_send.tempo = -1;
+                data_to_send.porto_destino = destino;
+                data_to_send.tempo = last_sensor_verification == 0 ? -1 : (current_sensor_verification - last_sensor_verification) / 1000;
+                last_sensor_verification = current_sensor_verification;
                 send_data(&data_to_send);
             }
-       
-            // send_data(&data_to_send);
+        }
+        else
+        {
+            // Armazena o status de funcionamento da embarcação
+            data_to_send.status = status;
+            // Indica que a embarcação está ou não em rota par o destino
+            data_to_send.status_travessia = true;
+            data_to_send.tempo = -1;
+            send_data(&data_to_send);
+        }
+
         sleep_ms(1000);
     }
 }
@@ -144,12 +150,14 @@ int64_t alarm_callback(alarm_id_t id, void *user_data)
 }
 void gpio_irq_handler_callback(uint gpio, uint32_t events)
 {
-    // uint64_t current_event = to_us_since_boot(get_absolute_time());
-    // if (current_event - last_event > 200000)
-    // {
-    //     last_event = current_event;
-    //     status = !status;
-    // }
+    uint64_t current_event = to_us_since_boot(get_absolute_time());
+    if (current_event - last_event > 200000)
+    {
+        last_event = current_event;
+        status = !status;
+        ssd1306_draw_string(&ssd, status ? "status ON " : "status OFF", 28, 20);
+        ssd1306_send_data(&ssd);
+    }
 }
 void start_up()
 {
@@ -187,9 +195,15 @@ uint16_t read_sensor()
 }
 void send_data(struct Data *data)
 {
-    
-    printf("dados :{\nStatus: %d,\nStatus Travessia: %d,\nTempo: %d,\nDestino: %s\n}",data->status,data->status_travessia,data->tempo,data->porto_destino);
-    fflush(stdout);
- 
-    sleep_ms(1000);
+    if (is_connection_successful)
+    {
+        printf("dados :{\nStatus: %d,\nStatus Travessia: %d,\nTempo: %d,\nDestino: %s\n}", data->status, data->status_travessia, data->tempo, data->porto_destino);
+        fflush(stdout);
+    }
+    else
+    {
+        printf("Erro no envio dos dados");
+        fflush(stdout);
+    }
+    sleep_ms(100);
 }
