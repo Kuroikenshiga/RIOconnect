@@ -124,6 +124,7 @@ bool network_start()
 {
     // Configuração do wifi e protocolo CoAP
     sleep_ms(3000);
+    //Altere o tipo de retorno para apresenar ou não o aviso de erro de conexão
     return true;
 }
 void send_alert(char *message, bool make_sound)
